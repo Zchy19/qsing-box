@@ -17,10 +17,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Remove the minimize and maximize buttons
-    setWindowFlags(windowFlags() & ~Qt::WindowMinMaxButtonsHint);
+    // Set initial window size
     resize(600, 450);
-    setMaximumSize(720, 720);
 
     m_versionLabel = new QLabel(this);
     m_versionLabel->setText("v" + QString(PROJECT_VERSION));
