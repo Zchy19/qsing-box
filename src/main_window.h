@@ -7,6 +7,7 @@
 #include "config_manager.h"
 #include "proxy_manager.h"
 #include "tray_icon.h"
+#include "subscription_manager.h"
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -44,6 +45,7 @@ private slots:
     void on_deleteButton_clicked();
     void on_importButton_clicked();
     void on_switchButton_clicked();
+    void on_subscriptionButton_clicked();
 
     void enableButton(int currentRow);
 
@@ -65,6 +67,7 @@ private:
     TrayIcon *m_trayIcon;
     ConfigManager *m_configManager;
     ProxyManager *m_proxyManager;
+    SubscriptionManager *m_subscriptionManager;
 };
 
 #endif // MAIN_WINDOW_H

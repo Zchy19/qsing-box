@@ -1,5 +1,6 @@
 #include "config_manager.h"
 
+#include <QDebug>
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileDialog>
@@ -172,6 +173,30 @@ void ConfigManager::updateConfigList(int index, const QString &filePath, const Q
     }
     saveConfigToSettings();
     emit configUpdated();
+}
+
+void ConfigManager::addExternalConfig(const QString &filePath, const QString &name)
+{
+    qDebug() << "[ConfigManager] Adding external config:" << filePath << name;
+    m_configList.append(Config{filePath, name});
+    saveConfigToSettings();
+    emit configUpdated();
+
+    // If this is the first config, switch to it
+    if (m_configList.count() == 1) {
+        switchConfig(0);
+    }
+}
+
+void ConfigManager::removeExternalConfig(const QString &filePath)
+{
+    qDebug() << "[ConfigManager] Removing external config:" << filePath;
+    for (int i = 0; i < m_configList.size(); ++i) {
+        if (m_configList.at(i).filePath() == filePath) {
+            removeConfig(i);
+            break;
+        }
+    }
 }
 
 void ConfigManager::getConfigFromSettings()

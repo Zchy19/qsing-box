@@ -19,6 +19,10 @@ public:
     void removeConfig(int index);
     void switchConfig(int index);
 
+    // External config management (for subscriptions)
+    void addExternalConfig(const QString &filePath, const QString &name);
+    void removeExternalConfig(const QString &filePath);
+
     QStringList configNames() const;
     QString configFilePath() const;
     QString configName() const;

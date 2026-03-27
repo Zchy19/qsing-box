@@ -1,6 +1,7 @@
 #include "main_window.h"
 #include "ui_main_window.h"
 
+#include <QDebug>
 #include <QLabel>
 #include <QMessageBox>
 #include <QRegularExpression>
@@ -10,6 +11,8 @@
 #include "about_dialog.h"
 #include "ansi_color_text.h"
 #include "settings_dialog.h"
+#include "subscription_dialog.h"
+#include "subscription_manager.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -42,6 +45,33 @@ MainWindow::MainWindow(QWidget *parent)
             &MainWindow::updateConfigList);
     connect(m_configManager, &ConfigManager::configChanged, this,
             &MainWindow::changeSelectedConfig);
+
+    m_subscriptionManager = new SubscriptionManager(this);
+    connect(m_subscriptionManager, &SubscriptionManager::configAdded,
+            m_configManager, [this](const QString &configPath, const QString &name) {
+        qDebug() << "[MainWindow] Config added from subscription:" << configPath << name;
+        // Add the downloaded config to the config list
+        m_configManager->addExternalConfig(configPath, name);
+    });
+    connect(m_subscriptionManager, &SubscriptionManager::configRemoved,
+            m_configManager, [this](const QString &configPath) {
+        qDebug() << "[MainWindow] Config removed from subscription:" << configPath;
+        // Remove the config from the list when subscription is deleted
+        m_configManager->removeExternalConfig(configPath);
+    });
+    connect(m_subscriptionManager, &SubscriptionManager::configUpdated,
+            this, [this](const QString &configPath) {
+        qDebug() << "[MainWindow] Config updated from subscription:" << configPath;
+        // If proxy is running and using this config, restart it
+        QString currentConfig = m_configManager->configFilePath();
+        QString updatedPath = QString("%1/%2").arg(SubscriptionManager::profilesDir()).arg(configPath);
+        if (m_proxyManager->proxyProcessState() == QProcess::Running &&
+            currentConfig == updatedPath) {
+            qDebug() << "[MainWindow] Restarting proxy with updated config";
+            stopProxy();
+            startProxy();
+        }
+    });
 
     ui->configNameLabel->setWordWrap(true);
     // Load the config list on first startup
@@ -150,6 +180,12 @@ void MainWindow::on_switchButton_clicked()
     if (index >= 0) {
         m_configManager->switchConfig(index);
     }
+}
+
+void MainWindow::on_subscriptionButton_clicked()
+{
+    SubscriptionDialog dialog(m_subscriptionManager, this);
+    dialog.exec();
 }
 
 void MainWindow::enableButton(int currentRow)

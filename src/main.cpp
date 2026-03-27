@@ -1,16 +1,19 @@
 #include "main_window.h"
 
 #include <QApplication>
+#include <QFile>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QLocale>
 #include <QMessageBox>
 #include <QSharedMemory>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QTranslator>
 
 #include <Windows.h>
 
+#include "file_logger.h"
 #include "privilege_manager.h"
 #include "settings_manager.h"
 
@@ -19,6 +22,21 @@ static const char* SINGLE_INSTANCE_SERVER_NAME = "qsing-box-single-instance";
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+
+    // Install file logger
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+                     + "/" + QCoreApplication::applicationName();
+    QString logPath = logDir + "/qsing-box.log";
+    FileLogger::install(logPath);
+    qDebug() << "[Main] Log file:" << logPath;
+
+    // Load dark theme stylesheet
+    QFile styleFile(":/styles/style.qss");
+    if (styleFile.open(QFile::ReadOnly)) {
+        QString styleSheet = QString::fromUtf8(styleFile.readAll());
+        app.setStyleSheet(styleSheet);
+        styleFile.close();
+    }
 
     QApplication::setQuitOnLastWindowClosed(false);
     QCoreApplication::setOrganizationName("NextIn");

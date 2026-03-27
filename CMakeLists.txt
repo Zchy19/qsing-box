@@ -37,6 +37,7 @@ target_link_libraries(qsing-box PRIVATE
     proxy
     settings
     utils
+    subscription
 )
 
 set_target_properties(qsing-box PROPERTIES
@@ -61,6 +62,7 @@ set(qsing-box_resources
     "resources/images/qt_logo.png"
     "resources/texts/gpl-3.0.txt"
     "resources/xml/task.xml"
+    "resources/styles/style.qss"
 )
 
 qt_add_resources(qsing-box res

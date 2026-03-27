@@ -1,5 +1,6 @@
 #include "proxy_manager.h"
 
+#include <QDebug>
 #include <QCoreApplication>
 #include <QFile>
 #include <QMessageBox>
@@ -48,7 +49,11 @@ void ProxyManager::stopProxy()
     if (m_proxyProcess->state() == QProcess::Running)
     {
         m_proxyProcess->kill();
-        m_proxyProcess->waitForFinished();
+        // Use timeout to avoid blocking UI indefinitely
+        // TUN mode may need more time to clean up
+        if (!m_proxyProcess->waitForFinished(5000)) {
+            qWarning() << "[ProxyManager] Process did not finish within timeout";
+        }
     }
 }
 
