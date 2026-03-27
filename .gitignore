@@ -75,4 +75,5 @@ CMakeLists.txt.user*
 
 # Claude Code
 .claude/
+.worktrees/
 aqtinstall.log
