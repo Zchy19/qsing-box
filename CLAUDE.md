@@ -8,35 +8,40 @@ qsing-box is a Windows GUI client for [sing-box](https://github.com/SagerNet/sin
 
 ## Build System
 
-This project uses **CMake** (minimum version 3.21) with Qt6.
+This project uses **CMake** (minimum version 3.21) with Qt6 and Ninja.
 
 ### Prerequisites
 
-- Qt6 (Widgets, LinguistTools components)
+- Qt6 (Widgets, Network, LinguistTools components)
 - CMake 3.21+
-- C++17 compatible compiler
-- Windows SDK (for Windows-specific APIs)
+- MinGW 13.1.0 (Qt bundled)
+- Ninja build tool
 
 ### Build Commands
 
 ```bash
-# Configure build
-mkdir build && cd build
-cmake ..
+# Set environment
+export PATH="/d/Programs/Code/Qt/Tools/mingw1310_64/bin:$PATH"
 
-# Build
-cmake --build . --config Release
-# or
-cmake --build . --config Debug
+# Test build (output to build_test/)
+mkdir -p build_test && cd build_test
+cmake .. -G "Ninja" \
+  -DCMAKE_PREFIX_PATH="D:/Programs/Code/Qt/6.11.0/mingw_64" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_COMPILER="D:/Programs/Code/Qt/Tools/mingw1310_64/bin/g++.exe" \
+  -DCMAKE_MAKE_PROGRAM="D:/Programs/Code/Qt/Tools/Ninja/ninja.exe"
+cmake --build .
+
+# Production build (output to build/)
+mkdir -p build && cd build
+# ... same cmake configuration ...
+cmake --build .
+
+# Deploy Qt dependencies for standalone execution
+windeployqt qsing-box.exe
 ```
 
-The build generates:
-- `qsing-box.exe` - Main executable
-- `.qm` translation files (embedded as resources)
-
 ### Adding Translations
-
-Translation files are in `languages/` (.ts files). To update translations:
 
 ```bash
 cd build
@@ -47,39 +52,42 @@ cmake --build . --target qsing-box_lupdate
 
 The application follows a modular architecture with static libraries:
 
-### Module Structure
-
 ```
 src/
-├── main.cpp              # Entry point, single-instance check, privilege elevation
+├── main.cpp              # Entry point, single-instance, privilege elevation
 ├── main_window.*         # Main UI controller, coordinates all modules
 ├── about_dialog.*        # About dialog UI
 ├── settings_dialog.*     # Settings dialog UI
 ├── tray_icon.*           # System tray icon and menu
 ├── config/               # Config static library
-│   ├── config.*          # Config data model (path, name)
+│   ├── config.*          # Config data model
 │   ├── config_manager.*  # Config list management (add/edit/remove/switch)
 │   └── config_editor.*   # Config editor dialog
 ├── proxy/                # Proxy static library
 │   ├── proxy_manager.*   # sing-box process management (QProcess)
 │   └── windows_proxy.*   # Windows system proxy settings
 ├── settings/             # Settings static library
-│   ├── settings_manager.* # App settings persistence (QSettings)
-│   ├── privilege_manager.* # UAC elevation handling
-│   └── task_scheduler.*   # Windows Task Scheduler for auto-run
+│   ├── settings_manager.*    # App settings persistence (QSettings)
+│   ├── privilege_manager.*   # UAC elevation handling
+│   └── task_scheduler.*      # Windows Task Scheduler for auto-run
+├── subscription/         # Subscription static library
+│   ├── subscription.*         # Subscription data model
+│   ├── subscription_manager.* # Subscription CRUD operations
+│   ├── subscription_downloader.* # Download configs from URLs
+│   └── *_dialog.*             # Subscription UI dialogs
 └── utils/                # Utils static library
-    └── ansi_color_text.*  # ANSI color code parsing for log display
+    ├── ansi_color_text.* # ANSI color code parsing for log display
+    └── file_logger.*     # File logging utility
 ```
 
 ### Key Components
 
-1. **MainWindow**: Central coordinator that connects ConfigManager, ProxyManager, and TrayIcon
-2. **ConfigManager**: Manages sing-box configuration files, stores list in Windows registry via QSettings
-3. **ProxyManager**: Spawns sing-box.exe as QProcess, handles process lifecycle and output
-4. **WindowsProxy**: Interfaces with Windows API to set/clear system proxy settings
-5. **TrayIcon**: QSystemTrayIcon wrapper with context menu for enable/disable proxy
-6. **PrivilegeManager**: Handles UAC elevation for TUN mode support
-7. **TaskScheduler**: Creates Windows scheduled task for boot-time auto-run
+1. **MainWindow**: Central coordinator connecting ConfigManager, ProxyManager, SubscriptionManager, and TrayIcon
+2. **ConfigManager**: Manages sing-box configuration files, stores list in Windows registry
+3. **ProxyManager**: Spawns sing-box.exe as QProcess, handles lifecycle and output
+4. **WindowsProxy**: Windows API interface for system proxy settings
+5. **TrayIcon**: QSystemTrayIcon with context menu, toggles window on click
+6. **SubscriptionManager**: Manages subscription URLs and auto-updates configs
 
 ### Data Flow
 
@@ -92,33 +100,31 @@ User -> MainWindow -> ConfigManager/ProxyManager -> sing-box.exe
 
 ### Settings Storage
 
-Application settings are stored in Windows registry under:
+Application settings stored in Windows registry:
 - `HKEY_CURRENT_USER\Software\NextIn\qsing-box`
-
-Settings include:
-- `configIndex` - Currently selected config index
-- `lastOpenedFilePath` - Last directory for file dialogs
-- `autoRun` - Boot-time auto-run enabled
-- `runAsAdmin` - Always run with administrator privileges
+- Keys: `configIndex`, `lastOpenedFilePath`, `autoRun`, `runAsAdmin`
 
 ### Auto-Run Implementation
 
-Boot-time auto-run uses Windows Task Scheduler (not registry Run key) to support:
+Uses Windows Task Scheduler (not registry Run key) to support:
 - Running with administrator privileges at boot
-- The task XML template is in `resources/xml/task.xml`
-- Passes `/autorun` argument to skip showing main window
-- Uses 3-second delay before starting proxy (see `main.cpp:76`)
+- Task XML template: `resources/xml/task.xml`
+- Passes `/autorun` argument, 3-second delay before starting proxy
 
 ### Single Instance
 
-Uses `QSharedMemory` with key "qsing-box" to prevent multiple instances.
+Uses `QSharedMemory` + `QLocalServer`/`QLocalSocket`:
+- First instance creates shared memory and local server
+- Second instance connects to server, sends "SHOW" message, exits silently
+- First instance receives message, shows and activates window
 
 ## Development Notes
 
-- **UI files**: `.ui` files are Qt Designer forms compiled to `ui_*.h` headers
-- **Resources**: Qt resource system embeds images, translations, and XML files
 - **C++ Standard**: C++17
-- **Windows-specific**: Heavy use of Windows APIs (WinInet for proxy, COM for Task Scheduler)
+- **UI files**: Qt Designer forms (`.ui`) compiled to `ui_*.h`
+- **Resources**: Qt resource system embeds images, translations, XML, styles
+- **Windows-specific**: WinInet for proxy, COM for Task Scheduler
+- **Dark theme**: Stylesheet at `resources/styles/style.qss`
 
 ## File Patterns
 
@@ -126,4 +132,4 @@ Uses `QSharedMemory` with key "qsing-box" to prevent multiple instances.
 - Sources: `*.cpp`
 - UI forms: `*.ui`
 - Translations: `languages/*.ts`
-- Resources: `resources/images/*.png`, `resources/images/*.ico`
+- Resources: `resources/images/*`, `resources/styles/*`, `resources/xml/*`
