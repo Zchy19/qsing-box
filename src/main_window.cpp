@@ -252,7 +252,14 @@ void MainWindow::showMainWindow(int reason)
     case QSystemTrayIcon::Trigger:
     case QSystemTrayIcon::DoubleClick:
     case QSystemTrayIcon::MiddleClick:
-        this->show();
+        if (isVisible() && !isMinimized()) {
+            hide();
+        } else {
+            show();
+            setWindowState(windowState() & ~Qt::WindowMinimized);
+            raise();
+            activateWindow();
+        }
         break;
     default:
         ;
